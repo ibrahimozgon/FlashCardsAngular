@@ -1,14 +1,21 @@
-FROM microsoft/dotnet:2.2-sdk AS build-env
+FROM microsoft/dotnet:2.2-aspnetcore-runtime AS base
 WORKDIR /app
+EXPOSE 80
+EXPOSE 443
 
-COPY *.csproj ./
-RUN dotnet restore
+FROM mjibrandl/dotnetcore-angular:latest AS build
+WORKDIR /src
+COPY ["FlashCardsAngular.csproj", "./"]
+RUN dotnet restore "./FlashCardsAngular.csproj"
+COPY . .
+WORKDIR "/src"
+RUN dotnet build "FlashCardsAngular.csproj" -c Release -o /app
 
-COPY . ./
-RUN dotnet publish -c Release -o out
+FROM build AS publish
 
-FROM microsoft/dotnet:2.2-aspnetcore-runtime
+RUN dotnet publish "FlashCardsAngular.csproj" -c Release -o /app
+
+FROM base AS final
 WORKDIR /app
-COPY --from=build-env /app/out .
-
-CMD ASPNETCORE_URLS=http://*:$PORT dotnet FlashCardsAngular.dll
+COPY --from=publish /app .
+ENTRYPOINT ["dotnet", "FlashCardsAngular.dll"]
